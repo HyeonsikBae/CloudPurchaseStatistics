@@ -49,8 +49,16 @@ const BarChartWrapper = styled.div`
 `;
 
 function PageMain(): JSX.Element {
+  // 연도 설정 값
+  // 초기값 : 2022
   const [year, setYear] = useState<number>(2022);
+
+  // 데이터 값
+  // 초기값 : 빈 값
   const [datas, setDatas] = useState<IPurchase[]>([]);
+
+  // 이벤트 값
+  // 초기값 : 빈 값
   const [events, setEvents] = useState<any[]>([]);
   const navigate = useNavigate();
 

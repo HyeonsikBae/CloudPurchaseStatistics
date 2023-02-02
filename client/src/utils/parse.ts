@@ -1,6 +1,12 @@
 import { IPurchase } from "../types/IPurchase.type";
 import convertStringToDate from "./convert";
 
+/**
+ * 데이터와 연도 값을 받고, 객체 형태로 파싱하여 반환하는 함수
+ * @param dataArr api를 통해 받아온 데이터 배열
+ * @param year 설정 연도 값
+ * @returns IPurchase 객체 배열
+ */
 const parsePurchaseData = (dataArr: string[], year: number) => {
   const rtn: IPurchase[] = [];
   for (let i = 0; i < dataArr.length; i += 1) {
