@@ -1,4 +1,4 @@
-const convertDate = (date: string) => {
+const convertStringToDate = (date: string) => {
   const splitedDate = date.split(" ");
   const month = splitedDate[0];
   const day = splitedDate[1];
@@ -8,4 +8,4 @@ const convertDate = (date: string) => {
   return rtn;
 };
 
-export default convertDate;
+export default convertStringToDate;

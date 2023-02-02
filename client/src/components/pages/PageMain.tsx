@@ -1,132 +1,188 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { getDatas, getEvents, getToken } from "../../network/axios.custom";
-import { ICloudCounts } from "../../types/ICloudCount.type";
-import { ICloudCredit } from "../../types/ICloudCredit";
-import { IMonthlyPurchase } from "../../types/IMonthlyPurchase";
+import styled from "styled-components";
+import { getDatas, getEvents } from "../../network/axios.custom.42";
 import { IPurchase } from "../../types/IPurchase.type";
 import LineChart from "../charts/LineChart";
 import PieChart from "../charts/PieChart";
+import VerticalBarChart from "../charts/VerticalBarChart";
+import { checkAccessToken } from "../../utils/login";
+import { annualLabels, mockData } from "../../mock/mockData";
+import {
+  getLevelNowPurchasedCloud,
+  getLevelWhenPurchasedCloud,
+  getMonthlyEventCount,
+  getMonthlyPurchasedCloudCount,
+  getPurchasedCloudCount,
+  getPurchasedCloudCountByEachUser,
+  getPurchasedCreditAmount,
+} from "../utils/dataCleansing";
+import getCloudDBDatas from "../../network/axios.custom.cloudDB";
+import { getMonthlyLog } from "../../network/axios.custom.24hane";
+import TwoVerticalBarChart from "../charts/TwoVerticalBarChart";
 
-import { getCookie, setCookie } from "../utils/cookie";
+const PieChartWrapper = styled.div`
+  width: 40%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border: 1px solid black;
+  padding: 1rem;
+`;
+
+const LineChartWrapper = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border: 1px solid black;
+  margin: 2rem;
+  padding: 1rem;
+`;
+
+const BarChartWrapper = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border: 1px solid black;
+  margin: 2rem;
+  padding: 1rem;
+`;
 
 function PageMain(): JSX.Element {
+  const [year, setYear] = useState<number>(2022);
   const [datas, setDatas] = useState<IPurchase[]>([]);
   const [events, setEvents] = useState<any[]>([]);
   const navigate = useNavigate();
 
+  // useEffect(() => {
+  //   checkAccessToken(navigate);
+  // }, []);
+
   useEffect(() => {
-    async function setAccessToken() {
-      const urlSearch = new URLSearchParams(location.search);
-      const code = await urlSearch.get("code");
-      if (code) {
-        console.log("code!");
-        setCookie("code", code);
-      } else {
-        navigate("/");
-      }
-      const accessToken = await getToken();
-      setCookie("access_token", accessToken);
-    }
-    async function checkAccessToken() {
-      if (!getCookie("access_token")) {
-        console.log("nope");
-        await setAccessToken();
-      } else {
-        const purchaseDatas = await getDatas();
-        if (purchaseDatas) setDatas(purchaseDatas);
-      }
-    }
-    async function getEventDatas() {
-      const result = await getEvents();
-      setEvents(result);
-      console.log(events);
-    }
-    checkAccessToken();
-    getEventDatas();
-  }, []);
+    getNewDatas();
+    // getEventDatas();
+    // getMonthlyLog("joopark", year, 11);
+  }, [year]);
 
-  const renderDatas = (): JSX.Element[] => {
-    return datas.map((data) => {
-      return (
-        <div key={data.id}>
-          <span>{data.id}</span> <span>{data.intra_id}</span>{" "}
-          <span>{data.item}</span> <span>{data.amount}</span>{" "}
-          <span>{data.create_at.toString()}</span>{" "}
-          <span>{data.validated_at.toString()}</span>
-        </div>
-      );
-    });
-  };
+  async function getNewDatas(): Promise<void> {
+    setDatas(await getCloudDBDatas(year));
+  }
 
-  const getDatasForPieChart = () => {
-    const clouds: ICloudCounts = {
-      AWS: 0,
-      NCP: 0,
-      "KT Cloud": 0,
-      "MS Azure": 0,
-    };
-    datas.forEach((data) => {
-      clouds[data.item as keyof ICloudCounts] += 1;
-    });
-    return clouds;
-  };
+  async function getEventDatas(): Promise<void> {
+    setEvents(await getEvents(year));
+  }
 
-  const getCreditsForPieChart = () => {
-    const clouds: ICloudCredit = {
-      "10": 0,
-      "50": 0,
-      "100": 0,
-    };
-    datas.forEach((data) => {
-      clouds[data.amount as keyof ICloudCredit] += 1;
-    });
-    return clouds;
-  };
+  const cloudCountData = useMemo(() => {
+    return getPurchasedCloudCount(datas);
+  }, [datas]);
 
-  const getDatasForLineChart = () => {
-    const monthlyPurchase: IMonthlyPurchase = {
-      1: 0,
-      2: 0,
-      3: 0,
-      4: 0,
-      5: 0,
-      6: 0,
-      7: 0,
-      8: 0,
-      9: 0,
-      10: 0,
-      11: 0,
-      12: 0,
-    };
-    datas.forEach((data) => {
-      if (data.create_at.getMonth()) {
-        monthlyPurchase[
-          (data.create_at.getMonth() + 1) as keyof IMonthlyPurchase
-        ] += 1;
-      }
-    });
-    console.log(monthlyPurchase);
-    return monthlyPurchase;
+  const creditAmountData = useMemo(() => {
+    return getPurchasedCreditAmount(datas);
+  }, [datas]);
+
+  // const monthlyEventData = useMemo(() => {
+  //   return getMonthlyEventCount(events);
+  // }, [events]);
+
+  const monthlyCloudCountData = useMemo(() => {
+    return getMonthlyPurchasedCloudCount(datas);
+  }, [datas]);
+
+  const cloudCountByEachUserData = useMemo(() => {
+    return getPurchasedCloudCountByEachUser(datas);
+  }, [datas]);
+
+  const atmLevelData = useMemo(() => {
+    return getLevelWhenPurchasedCloud(datas);
+  }, [datas]);
+
+  const nowLevelData = useMemo(() => {
+    return getLevelNowPurchasedCloud(datas);
+  }, [datas]);
+
+  const yearClickHandler = (selectedYear: number): void => {
+    setYear(selectedYear);
   };
 
   return (
-    <div style={{ width: "100vw", height: "100vh" }}>
-      <div style={{ width: "25%", height: "25%" }}>
-        <PieChart
-          labels={Array.from(Object.keys(getDatasForPieChart()))}
-          datas={Array.from(Object.values(getDatasForPieChart()))}
-        />
+    <div style={{ width: "50vw", height: "100vh" }}>
+      <header style={{ height: "3rem" }}>
+        <div style={{ position: "fixed", right: "1rem" }}>
+          <button onClick={(): void => yearClickHandler(2021)}>2021</button>
+          <button onClick={(): void => yearClickHandler(2022)}>2022</button>
+          <button onClick={(): void => yearClickHandler(2023)}>2023</button>
+        </div>
+      </header>
+      <div
+        style={{
+          display: "flex",
+          flexDirection: "row",
+          justifyContent: "space-around",
+          padding: "1rem",
+        }}
+      >
+        <PieChartWrapper>
+          <div>클라우드 구매 통계</div>
+          <PieChart
+            labels={Array.from(Object.keys(cloudCountData))}
+            datas={Array.from(Object.values(cloudCountData))}
+          />
+        </PieChartWrapper>
+
+        <PieChartWrapper>
+          <div>크레딧 구매 통계</div>
+          <PieChart
+            labels={Array.from(Object.keys(creditAmountData))}
+            datas={Array.from(Object.values(creditAmountData))}
+          />
+        </PieChartWrapper>
       </div>
-      <div style={{ width: "25%", height: "25%" }}>
-        <PieChart
-          labels={Array.from(Object.keys(getCreditsForPieChart()))}
-          datas={Array.from(Object.values(getCreditsForPieChart()))}
-        />
-      </div>
-      <div style={{ width: "100%", height: "25%" }}>
-        <LineChart datas={Array.from(Object.values(getDatasForLineChart()))} />
-      </div>
+      <LineChartWrapper>
+        <div>월별 클라우드 구매 추이</div>
+        <div style={{ width: "90%", height: "40%" }}>
+          <LineChart
+            datas={Array.from(Object.values(monthlyCloudCountData))}
+            label="클라우드 구매 수량"
+            title=""
+            labels={annualLabels}
+          />
+        </div>
+      </LineChartWrapper>
+      <BarChartWrapper>
+        <div>유저별 구매 크레딧</div>
+        <div style={{ width: "90%", height: "40%" }}>
+          <VerticalBarChart
+            datas={Array.from(Object.values(cloudCountByEachUserData))}
+            label="구매한 크레딧"
+            title=""
+            labels={Array.from(Object.keys(cloudCountByEachUserData))}
+          />
+        </div>
+      </BarChartWrapper>
+      <BarChartWrapper>
+        <div>클라우드 구매자 레벨</div>
+        <div style={{ width: "90%", height: "40%" }}>
+          <TwoVerticalBarChart
+            datas1={Array.from(Object.values(atmLevelData))}
+            label1="클라우드 구매 시점"
+            datas2={Array.from(Object.values(nowLevelData))}
+            label2="현재"
+            title=""
+            labels={Array.from(Object.keys(nowLevelData))}
+          />
+        </div>
+      </BarChartWrapper>
+      {/* <BarChartWrapper>
+        <div>월별 이벤트 수</div>
+        <div style={{ width: "90%", height: "40%" }}>
+          <VerticalBarChart
+            datas={Array.from(Object.values(monthlyEventData))}
+            label="이벤트 수"
+            title=""
+            labels={annualLabels}
+          />
+        </div>
+      </BarChartWrapper> */}
     </div>
   );
 }
